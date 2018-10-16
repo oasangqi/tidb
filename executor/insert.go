@@ -80,6 +80,7 @@ func (e *InsertExec) exec(rows [][]types.Datum) error {
 		}
 	} else {
 		for _, row := range rows {
+			// 插入一行
 			if _, err := e.insertOneRow(row); err != nil {
 				return errors.Trace(err)
 			}

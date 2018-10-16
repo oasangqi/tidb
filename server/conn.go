@@ -164,6 +164,7 @@ func (cc *clientConn) Close() error {
 // writeInitialHandshake sends server version, connection ID, server capability, collation, server status
 // and auth salt to the client.
 func (cc *clientConn) writeInitialHandshake() error {
+	// 初始4字节用于填充长度、序号
 	data := make([]byte, 4, 128)
 
 	// min version 10
@@ -387,6 +388,7 @@ func (cc *clientConn) openSessionAndDoAuth(authData []byte) error {
 		tlsStatePtr = &tlsState
 	}
 	var err error
+	// 若配置tikv driver的实现类型为TiDBDriver，见server/driver_tidb.go
 	cc.ctx, err = cc.server.driver.OpenCtx(uint64(cc.connectionID), cc.capability, cc.collation, cc.dbname, tlsStatePtr)
 	if err != nil {
 		return errors.Trace(err)
@@ -439,6 +441,8 @@ func (cc *clientConn) Run() {
 	// The client connection would detect the events when it fails to change status
 	// by CAS operation, it would then take some actions accordingly.
 	for {
+		// 连接建立时的初始状态为connStatusDispatching
+		// 状态切换为读包中
 		if atomic.CompareAndSwapInt32(&cc.status, connStatusDispatching, connStatusReading) == false {
 			if atomic.LoadInt32(&cc.status) == connStatusShutdown {
 				closedOutside = true
@@ -447,6 +451,7 @@ func (cc *clientConn) Run() {
 		}
 
 		cc.alloc.Reset()
+		// data为读到的指令
 		data, err := cc.readPacket()
 		if err != nil {
 			if terror.ErrorNotEqual(err, io.EOF) {
@@ -459,6 +464,7 @@ func (cc *clientConn) Run() {
 			return
 		}
 
+		// 状态切换为处理中
 		if atomic.CompareAndSwapInt32(&cc.status, connStatusReading, connStatusDispatching) == false {
 			if atomic.LoadInt32(&cc.status) == connStatusShutdown {
 				closedOutside = true
@@ -467,6 +473,7 @@ func (cc *clientConn) Run() {
 		}
 
 		startTime := time.Now()
+		// 指令处理
 		if err = cc.dispatch(data); err != nil {
 			if terror.ErrorEqual(err, io.EOF) {
 				cc.addMetrics(data[0], startTime, nil)
@@ -497,6 +504,7 @@ func (cc *clientConn) Run() {
 
 // ShutdownOrNotify will Shutdown this client connection, or do its best to notify.
 func (cc *clientConn) ShutdownOrNotify() bool {
+	// Skip in trans client connection
 	if (cc.ctx.Status() & mysql.ServerStatusInTrans) > 0 {
 		return false
 	}
@@ -587,8 +595,10 @@ func (cc *clientConn) dispatch(data []byte) error {
 	cmd := data[0]
 	data = data[1:]
 	cc.lastCmd = hack.String(data)
+	// 取token，token用于限制并发数
 	token := cc.server.getToken()
 	defer func() {
+		// 命令执行完归还token
 		cc.server.releaseToken(token)
 		span.Finish()
 	}()
@@ -609,6 +619,7 @@ func (cc *clientConn) dispatch(data []byte) error {
 		if len(data) > 0 && data[len(data)-1] == 0 {
 			data = data[:len(data)-1]
 		}
+		// 增、删、改、查
 		return cc.handleQuery(ctx1, hack.String(data))
 	case mysql.ComPing:
 		return cc.writeOK()
@@ -863,6 +874,8 @@ func (cc *clientConn) handleLoadStats(ctx context.Context, loadStatsInfo *execut
 // There is a special query `load data` that does not return result, which is handled differently.
 // Query `load stats` does not return result either.
 func (cc *clientConn) handleQuery(ctx context.Context, sql string) (err error) {
+	// 执行并取结果
+	// 参照server/driver_tidb.go func (tc *TiDBContext) Execute
 	rs, err := cc.ctx.Execute(ctx, sql)
 	if err != nil {
 		metrics.ExecuteErrorCounter.WithLabelValues(metrics.ExecuteErrorToLabel(err)).Inc()
@@ -870,8 +883,12 @@ func (cc *clientConn) handleQuery(ctx context.Context, sql string) (err error) {
 	}
 	if rs != nil {
 		if len(rs) == 1 {
+			// 单结果集(一条命令仅含单条SQL?)
+			// 调用Executor的Next()执行
 			err = cc.writeResultset(ctx, rs[0], false, 0, 0)
 		} else {
+			// 多结果集(一条命令含多条SQL?)
+			// rs为server.tidbResultSet类型
 			err = cc.writeMultiResultset(ctx, rs, false)
 		}
 	} else {
@@ -950,6 +967,7 @@ func (cc *clientConn) writeResultset(ctx context.Context, rs ResultSet, binary b
 		log.Errorf("query: %s:\n%s", cc.lastCmd, buf)
 	}()
 	var err error
+	// rs为server.tidbResultSet类型
 	if mysql.HasCursorExistsFlag(serverStatus) {
 		err = cc.writeChunksWithFetchSize(ctx, rs, serverStatus, fetchSize)
 	} else {
@@ -989,6 +1007,7 @@ func (cc *clientConn) writeChunks(ctx context.Context, rs ResultSet, binary bool
 	gotColumnInfo := false
 	for {
 		// Here server.tidbResultSet implements Next method.
+		// 最底层为Executor的Next 返回的数据读入chk
 		err := rs.Next(ctx, chk)
 		if err != nil {
 			return errors.Trace(err)
@@ -1017,6 +1036,7 @@ func (cc *clientConn) writeChunks(ctx context.Context, rs ResultSet, binary bool
 			if err != nil {
 				return errors.Trace(err)
 			}
+			// 发回客户端
 			if err = cc.writePacket(data); err != nil {
 				return errors.Trace(err)
 			}

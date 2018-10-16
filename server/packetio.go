@@ -66,10 +66,12 @@ func (p *packetIO) setBufferedReadConn(bufReadConn *bufferedReadConn) {
 func (p *packetIO) readOnePacket() ([]byte, error) {
 	var header [4]byte
 
+	// 读数据头:第0~2字节表示的数据长度，第3字节代表包的序号
 	if _, err := io.ReadFull(p.bufReadConn, header[:]); err != nil {
 		return nil, errors.Trace(err)
 	}
 
+	// 校验序号
 	sequence := header[3]
 	if sequence != p.sequence {
 		return nil, errInvalidSequence.Gen("invalid sequence %d != %d", sequence, p.sequence)
@@ -80,6 +82,7 @@ func (p *packetIO) readOnePacket() ([]byte, error) {
 	length := int(uint32(header[0]) | uint32(header[1])<<8 | uint32(header[2])<<16)
 
 	data := make([]byte, length)
+	// 读数据内容
 	if _, err := io.ReadFull(p.bufReadConn, data); err != nil {
 		return nil, errors.Trace(err)
 	}
@@ -87,6 +90,7 @@ func (p *packetIO) readOnePacket() ([]byte, error) {
 }
 
 func (p *packetIO) readPacket() ([]byte, error) {
+	// 一条客户端命令可能拆成多个包发送
 	data, err := p.readOnePacket()
 	if err != nil {
 		return nil, errors.Trace(err)
@@ -110,6 +114,7 @@ func (p *packetIO) readPacket() ([]byte, error) {
 		}
 	}
 
+	// 返回客户端指令
 	return data, nil
 }
 
@@ -117,6 +122,7 @@ func (p *packetIO) readPacket() ([]byte, error) {
 func (p *packetIO) writePacket(data []byte) error {
 	length := len(data) - 4
 
+	// 分段发送 每段前第0~2字节代表长度 第3字节代表序号
 	for length >= mysql.MaxPayloadLen {
 		data[0] = 0xff
 		data[1] = 0xff

@@ -59,6 +59,7 @@ type logicalOptRule interface {
 // Optimize does optimization and creates a Plan.
 // The node must be prepared first.
 func Optimize(ctx sessionctx.Context, node ast.Node, is infoschema.InfoSchema) (Plan, error) {
+	// 查询计划缓存命中
 	fp := tryFastPlan(ctx, node)
 	if fp != nil {
 		return fp, nil
@@ -70,6 +71,9 @@ func Optimize(ctx sessionctx.Context, node ast.Node, is infoschema.InfoSchema) (
 		is:        is,
 		colMapper: make(map[*ast.ColumnNameExpr]int),
 	}
+	// AST转Plan
+	// SELECT:SelectStmt转LogicalPlan类型Plan
+	// INSERT:InsertStmt转Insert类型Plan
 	p, err := builder.build(node)
 	if err != nil {
 		return nil, errors.Trace(err)
@@ -83,7 +87,10 @@ func Optimize(ctx sessionctx.Context, node ast.Node, is infoschema.InfoSchema) (
 		}
 	}
 
+	// SELECT:LogicalPlan类型的Plan，进行优化
+	// INSERT:Insert类型的Plan，不优化
 	if logic, ok := p.(LogicalPlan); ok {
+		// SELECT:返回PhysicalPlan的Plan
 		return doOptimize(builder.optFlag, logic)
 	}
 	if execPlan, ok := p.(*Execute); ok {

@@ -150,6 +150,7 @@ func runStmt(ctx context.Context, sctx sessionctx.Context, s ast.Statement) (ast
 	var err error
 	var rs ast.RecordSet
 	se := sctx.(*session)
+	// 参照executor/adapter.go func (a *ExecStmt) Exec
 	rs, err = s.Exec(ctx)
 	span.SetTag("txn.id", se.sessionVars.TxnCtx.StartTS)
 	// All the history should be added here.

@@ -223,6 +223,7 @@ func (tc *TiDBContext) WarningCount() uint16 {
 
 // Execute implements QueryCtx Execute method.
 func (tc *TiDBContext) Execute(ctx context.Context, sql string) (rs []ResultSet, err error) {
+	// 参照session/session.go func (s *session) Execute
 	rsList, err := tc.session.Execute(ctx, sql)
 	if err != nil {
 		return
@@ -331,6 +332,7 @@ func (trs *tidbResultSet) NewChunk() *chunk.Chunk {
 }
 
 func (trs *tidbResultSet) Next(ctx context.Context, chk *chunk.Chunk) error {
+	// 参照executor/adapter.go executor.recordSet.Next
 	return trs.recordSet.Next(ctx, chk)
 }
 

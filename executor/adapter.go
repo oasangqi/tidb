@@ -199,6 +199,9 @@ func (a *ExecStmt) Exec(ctx context.Context) (ast.RecordSet, error) {
 		}()
 	}
 
+	// 通过查询计划(plan)生成执行器(Executor)
+	// INSERT:返回的Executor类型为InsertExec结构
+	// SELECT:返回的Executor类型为SelectionExec结构
 	e, err := a.buildExecutor(sctx)
 	if err != nil {
 		return nil, errors.Trace(err)
@@ -232,6 +235,7 @@ func (a *ExecStmt) Exec(ctx context.Context) (ast.RecordSet, error) {
 		return a.handleNoDelayExecutor(ctx, sctx, e, pi)
 	}
 
+	// 实现了ast.RecordSet接口(查询结果集的抽象)
 	return &recordSet{
 		executor:    e,
 		stmt:        a,
@@ -305,6 +309,7 @@ func (a *ExecStmt) buildExecutor(ctx sessionctx.Context) (Executor, error) {
 	}
 
 	b := newExecutorBuilder(ctx, a.InfoSchema)
+	// INSERT语句返回的Executor类型为InsertExec结构
 	e := b.build(a.Plan)
 	if b.err != nil {
 		return nil, errors.Trace(b.err)

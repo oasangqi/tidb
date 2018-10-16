@@ -472,6 +472,7 @@ func (t *tableCommon) AddRecord(ctx sessionctx.Context, r []types.Datum, skipHan
 		return 0, errors.Trace(err)
 	}
 	value := writeBufs.RowValBuf
+	// key value写入当前事务缓存
 	if err = txn.Set(key, value); err != nil {
 		return 0, errors.Trace(err)
 	}

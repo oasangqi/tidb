@@ -142,6 +142,7 @@ func (b *planBuilder) build(node ast.Node) (Plan, error) {
 	case *ast.ExplainStmt:
 		return b.buildExplain(x)
 	case *ast.InsertStmt:
+		// 返回Insert类型的Plan
 		return b.buildInsert(x)
 	case *ast.LoadDataStmt:
 		return b.buildLoadData(x)
@@ -150,6 +151,7 @@ func (b *planBuilder) build(node ast.Node) (Plan, error) {
 	case *ast.PrepareStmt:
 		return b.buildPrepare(x), nil
 	case *ast.SelectStmt:
+		// 返回LogicalPlan的Plan
 		return b.buildSelect(x)
 	case *ast.UnionStmt:
 		return b.buildUnion(x)
@@ -925,6 +927,7 @@ func (b *planBuilder) buildInsert(insert *ast.InsertStmt) (Plan, error) {
 		return nil, errors.Errorf("Can't get table %s.", tableInfo.Name.O)
 	}
 
+	// 返回的Plan为Insert类型
 	insertPlan := Insert{
 		Table:       tableInPlan,
 		Columns:     insert.Columns,

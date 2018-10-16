@@ -221,6 +221,7 @@ func (c *client) switchLeader(addrs []string) error {
 }
 
 func (c *client) getOrCreateGRPCConn(addr string) (*grpc.ClientConn, error) {
+	// get connection
 	c.connMu.RLock()
 	conn, ok := c.connMu.clientConns[addr]
 	c.connMu.RUnlock()
@@ -228,6 +229,7 @@ func (c *client) getOrCreateGRPCConn(addr string) (*grpc.ClientConn, error) {
 		return conn, nil
 	}
 
+	// create new connection
 	opt := grpc.WithInsecure()
 	if len(c.security.CAPath) != 0 {
 
@@ -287,7 +289,9 @@ func (c *client) leaderLoop() {
 
 	for {
 		select {
+		// 收到更新请求
 		case <-c.checkLeaderCh:
+		// 最多间隔1分钟
 		case <-time.After(time.Minute):
 		case <-ctx.Done():
 			return
@@ -374,12 +378,16 @@ func (c *client) tsLoop() {
 				cancel: cancel,
 			}
 			select {
+			// 由go tsCancelLoop进行异步超时通知
+			// 但tsCancelLoop是如何通知超时的呢?
+			// 下面两个函数执行过程中没有select <-ctx.Done()
 			case c.tsDeadlineCh <- dl:
 			case <-loopCtx.Done():
 				return
 			}
 			opts = extractSpanReference(requests, opts[:0])
 			err = c.processTSORequests(stream, requests, opts)
+			// 通知tsCancelLoop不再关注本次requests，
 			close(done)
 			requests = requests[:0]
 		case <-loopCtx.Done():
@@ -418,6 +426,7 @@ func (c *client) processTSORequests(stream pdpb.PD_TsoClient, requests []*tsoReq
 	}
 
 	if err := stream.Send(req); err != nil {
+		// 通知处理失败，并传递err
 		c.finishTSORequest(requests, 0, 0, err)
 		return errors.Trace(err)
 	}
@@ -438,6 +447,7 @@ func (c *client) processTSORequests(stream pdpb.PD_TsoClient, requests []*tsoReq
 	physical, logical := resp.GetTimestamp().GetPhysical(), resp.GetTimestamp().GetLogical()
 	// Server returns the highest ts.
 	logical -= int64(resp.GetCount() - 1)
+	// 通知处理成功
 	c.finishTSORequest(requests, physical, logical, nil)
 	return nil
 }
@@ -525,11 +535,14 @@ type TSFuture interface {
 func (req *tsoRequest) Wait() (int64, int64, error) {
 	select {
 	case err := <-req.done:
+		// 取出结果后把req归还给tsoReqPool
 		defer tsoReqPool.Put(req)
 		if err != nil {
+			// 失败
 			cmdFailedDuration.WithLabelValues("tso").Observe(time.Since(req.start).Seconds())
 			return 0, 0, errors.Trace(err)
 		}
+		// 成功
 		physical, logical := req.physical, req.logical
 		cmdDuration.WithLabelValues("tso").Observe(time.Since(req.start).Seconds())
 		return physical, logical, err
@@ -539,7 +552,9 @@ func (req *tsoRequest) Wait() (int64, int64, error) {
 }
 
 func (c *client) GetTS(ctx context.Context) (int64, int64, error) {
+	// 发送request给 go tsLoop处理
 	resp := c.GetTSAsync(ctx)
+	// 阻塞等待结果
 	return resp.Wait()
 }
 

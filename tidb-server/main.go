@@ -135,6 +135,7 @@ func main() {
 	validateConfig()
 	setGlobalVars()
 	setupLog()
+	// opentrace默认关闭
 	setupTracing() // Should before createServer and after setup config.
 	printInfo()
 	setupBinlogClient()
@@ -158,6 +159,7 @@ func registerStores() {
 func createStoreAndDomain() {
 	fullPath := fmt.Sprintf("%s://%s", cfg.Store, cfg.Path)
 	var err error
+	// 存储引擎为tikv时，storage为tikv.tikvStore类型(实现接口kv.Storage)
 	storage, err = session.NewStore(fullPath)
 	terror.MustNil(err)
 	// Bootstrap a session to load information schema.
@@ -440,10 +442,12 @@ func setupSignalHandler() {
 		syscall.SIGTERM,
 		syscall.SIGQUIT)
 
+	// 异步信号处理
 	go func() {
 		sig := <-sc
 		log.Infof("Got signal [%s] to exit.", sig)
 		if sig == syscall.SIGQUIT {
+			// 优雅退出
 			graceful = true
 		}
 
@@ -467,8 +471,11 @@ func setupMetrics() {
 			metrics.KeepAliveCounter.Inc()
 		}
 	}
+	// 监控系统时间倒退的次数
 	go systimemon.StartMonitor(time.Now, systimeErrHandler, sucessCallBack)
 
+	// 定时推送metrics到Prometheus pushgateway
+	// 各个包中的metric需先初始化和注册，参照metrics目录、pd-client/metrics.go
 	pushMetric(cfg.Status.MetricsAddr, time.Duration(cfg.Status.MetricsInterval)*time.Second)
 }
 
@@ -497,6 +504,7 @@ func closeDomainAndStorage() {
 }
 
 func cleanup() {
+	// 优雅退出，收到SIQQUIT
 	if graceful {
 		svr.GracefulDown()
 	}

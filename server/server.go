@@ -150,6 +150,7 @@ func NewServer(cfg *config.Config, driver IDriver) (*Server, error) {
 		s.capability |= mysql.ClientSSL
 	}
 
+	// 侦听端口
 	var err error
 	if cfg.Socket != "" {
 		if s.listener, err = net.Listen("unix", cfg.Socket); err == nil {
@@ -235,9 +236,13 @@ func (s *Server) Run() error {
 	metrics.ServerEventCounter.WithLabelValues(metrics.EventStart).Inc()
 
 	// Start HTTP API to report tidb info such as TPS.
+	// HTTP服务:
+	//	curl http://192.168.187.111:10080/status
+	//	curl http://192.168.187.111:10080/settings
 	if s.cfg.Status.ReportStatus {
 		s.startStatusHTTP()
 	}
+	// TCP服务
 	for {
 		conn, err := s.listener.Accept()
 		if err != nil {
@@ -302,6 +307,7 @@ func (s *Server) Close() {
 
 // onConn runs in its own goroutine, handles queries from this connection.
 func (s *Server) onConn(c net.Conn) {
+	// 创建该TCP连接对应的数据库连接
 	conn := s.newConn(c)
 	if err := conn.handshake(); err != nil {
 		// Some keep alive services will send request to TiDB and disconnect immediately.
@@ -321,6 +327,7 @@ func (s *Server) onConn(c net.Conn) {
 	s.rwlock.Unlock()
 	metrics.ConnGauge.Set(float64(connections))
 
+	// 业务处理
 	conn.Run()
 }
 

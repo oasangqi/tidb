@@ -94,6 +94,7 @@ func (b *executorBuilder) build(p plan.Plan) Executor {
 	case *plan.PointGetPlan:
 		return b.buildPointGet(v)
 	case *plan.Insert:
+		// INSERT返回的Executor类型为InsertExec结构
 		return b.buildInsert(v)
 	case *plan.LoadData:
 		return b.buildLoadData(v)
@@ -136,6 +137,7 @@ func (b *executorBuilder) build(p plan.Plan) Executor {
 	case *plan.PhysicalIndexJoin:
 		return b.buildIndexLookUpJoin(v)
 	case *plan.PhysicalSelection:
+		// SELECT:返回SelectionExec结构的Executor
 		return b.buildSelection(v)
 	case *plan.PhysicalHashAgg:
 		return b.buildHashAgg(v)

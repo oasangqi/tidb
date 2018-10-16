@@ -46,6 +46,7 @@ func NewPdOracle(pdClient pd.Client, updateInterval time.Duration) (oracle.Oracl
 		quit: make(chan struct{}),
 	}
 	ctx := context.TODO()
+	// o定期从pd同步时间戳
 	go o.updateTS(ctx, updateInterval)
 	// Initialize lastTS by Get.
 	_, err := o.GetTimestamp(ctx)
@@ -98,6 +99,7 @@ func (o *pdOracle) GetTimestampAsync(ctx context.Context) oracle.Future {
 
 func (o *pdOracle) getTimestamp(ctx context.Context) (uint64, error) {
 	now := time.Now()
+	// 从pd获取时间戳，过程阻塞
 	physical, logical, err := o.c.GetTS(ctx)
 	if err != nil {
 		return 0, errors.Trace(err)
@@ -116,6 +118,7 @@ func (o *pdOracle) setLastTS(ts uint64) {
 	}
 }
 
+// update timestamp of o every interval
 func (o *pdOracle) updateTS(ctx context.Context, interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	for {

@@ -477,6 +477,7 @@ func (resp *CopStreamResponse) Close() {
 // CheckStreamTimeoutLoop runs periodically to check is there any stream request timeouted.
 // Lease is an object to track stream requests, call this function with "go CheckStreamTimeoutLoop()"
 func CheckStreamTimeoutLoop(ch <-chan *Lease) {
+	// 检查间隔为200毫秒
 	ticker := time.NewTicker(200 * time.Millisecond)
 	defer ticker.Stop()
 	array := make([]*Lease, 0, 1024)
@@ -502,9 +503,11 @@ func keepOnlyActive(array []*Lease, now int64) []*Lease {
 		item := array[i]
 		deadline := atomic.LoadInt64(&item.deadline)
 		if deadline == 0 || deadline > now {
+			// 保留永不超时(0)、未超时的Lease
 			array[idx] = array[i]
 			idx++
 		} else {
+			// 超时Lease通过回调销毁
 			item.Cancel()
 		}
 	}

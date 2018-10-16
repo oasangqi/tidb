@@ -78,6 +78,7 @@ func (d Driver) Open(path string) (kv.Storage, error) {
 		return nil, errors.Trace(err)
 	}
 
+	// new PD connection
 	pdCli, err := pd.NewClient(etcdAddrs, pd.SecurityOption{
 		CAPath:   security.ClusterSSLCA,
 		CertPath: security.ClusterSSLCert,
@@ -102,6 +103,7 @@ func (d Driver) Open(path string) (kv.Storage, error) {
 		return nil, errors.Trace(err)
 	}
 
+	// 建立pd:etcd:V3连接
 	spkv, err := NewEtcdSafePointKV(etcdAddrs, tlsConfig)
 	if err != nil {
 		return nil, errors.Trace(err)
@@ -191,6 +193,7 @@ func newTikvStore(uuid string, pdClient pd.Client, spkv SafePointKV, client Clie
 	store.lockResolver = newLockResolver(store)
 	store.enableGC = enableGC
 
+	// 定期从pd更新safepoint值
 	go store.runSafePointChecker()
 
 	return store, nil

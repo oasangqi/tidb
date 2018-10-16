@@ -786,6 +786,7 @@ func (s *session) execute(ctx context.Context, sql string) (recordSets []ast.Rec
 
 	// Step1: Compile query string to abstract syntax trees(ASTs).
 	startTS := time.Now()
+	// 返回ast.InsertStmt、DeleteStmt、UpdateStmt、SelectStmt
 	stmtNodes, err := s.ParseSQL(ctx, sql, charsetInfo, collation)
 	if err != nil {
 		s.rollbackOnError(ctx)
@@ -820,6 +821,7 @@ func (s *session) execute(ctx context.Context, sql string) (recordSets []ast.Rec
 
 	if s.sessionVars.ClientCapability&mysql.ClientMultiResults == 0 && len(recordSets) > 1 {
 		// return the first recordset if client doesn't support ClientMultiResults.
+		// 未开启单个数据包多条语句
 		recordSets = recordSets[:1]
 	}
 	return recordSets, nil
