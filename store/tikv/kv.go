@@ -79,6 +79,7 @@ func (d Driver) Open(path string) (kv.Storage, error) {
 	}
 
 	// new PD connection
+	// pdCli包含与pd建立的grpc连接
 	pdCli, err := pd.NewClient(etcdAddrs, pd.SecurityOption{
 		CAPath:   security.ClusterSSLCA,
 		CertPath: security.ClusterSSLCert,
@@ -103,7 +104,7 @@ func (d Driver) Open(path string) (kv.Storage, error) {
 		return nil, errors.Trace(err)
 	}
 
-	// 建立pd:etcd:V3连接
+	// 建立pd:etcd:V3连接，pd embedded etcd
 	spkv, err := NewEtcdSafePointKV(etcdAddrs, tlsConfig)
 	if err != nil {
 		return nil, errors.Trace(err)

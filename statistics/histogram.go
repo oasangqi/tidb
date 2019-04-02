@@ -120,7 +120,8 @@ func (c *Column) AvgColSize(count int64) float64 {
 		return types.MyDecimalStructSize
 	default:
 		// Keep two decimal place.
-		return math.Round(float64(c.TotColSize)/float64(count)*100) / 100
+		//return math.Round(float64(c.TotColSize)/float64(count)*100) / 100
+		return float64(c.TotColSize)
 	}
 }
 

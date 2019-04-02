@@ -42,6 +42,7 @@ func (e *InsertExec) insertOneRow(row []types.Datum) (int64, error) {
 		return 0, errors.Trace(err)
 	}
 	e.ctx.Txn().SetOption(kv.PresumeKeyNotExists, nil)
+	// 把一行数据写入存储引擎
 	h, err := e.Table.AddRecord(e.ctx, row, false)
 	e.ctx.Txn().DelOption(kv.PresumeKeyNotExists)
 	if err != nil {
@@ -86,6 +87,7 @@ func (e *InsertExec) exec(rows [][]types.Datum) error {
 			}
 		}
 	}
+	// 更新@last_insert_id
 	if e.lastInsertID != 0 {
 		sessVars.SetLastInsertID(e.lastInsertID)
 	}
@@ -182,6 +184,7 @@ func (e *InsertExec) Next(ctx context.Context, chk *chunk.Chunk) error {
 	if len(e.children) > 0 && e.children[0] != nil {
 		return errors.Trace(e.insertRowsFromSelect(ctx, cols, e.exec))
 	}
+	// 插入行
 	return errors.Trace(e.insertRows(cols, e.exec))
 }
 

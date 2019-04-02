@@ -35,7 +35,9 @@ func (tl *TokenLimiter) Get() *Token {
 
 // NewTokenLimiter creates a TokenLimiter with count tokens.
 func NewTokenLimiter(count uint) *TokenLimiter {
+	// 缓存为count的chan
 	tl := &TokenLimiter{count: count, ch: make(chan *Token, count)}
+	// 初始化写满缓存
 	for i := uint(0); i < count; i++ {
 		tl.ch <- &Token{}
 	}

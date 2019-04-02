@@ -138,7 +138,7 @@ func NewServer(cfg *config.Config, driver IDriver) (*Server, error) {
 	s := &Server{
 		cfg:               cfg,
 		driver:            driver,
-		concurrentLimiter: NewTokenLimiter(cfg.TokenLimit),
+		concurrentLimiter: NewTokenLimiter(cfg.TokenLimit), // 用带缓存的channel实现limiter
 		rwlock:            &sync.RWMutex{},
 		clients:           make(map[uint32]*clientConn),
 		stopListenerCh:    make(chan struct{}, 1),
@@ -279,6 +279,7 @@ func (s *Server) Run() error {
 }
 
 func (s *Server) shouldStopListener() bool {
+	// 非阻塞检查channel是否可读
 	select {
 	case <-s.stopListenerCh:
 		return true

@@ -465,6 +465,7 @@ func NewDomain(store kv.Storage, ddlLease time.Duration, statsLease time.Duratio
 // Init initializes a domain.
 func (do *Domain) Init(ddlLease time.Duration, sysFactory func(*Domain) (pools.Resource, error)) error {
 	if ebd, ok := do.store.(EtcdBackend); ok {
+		// tikv引擎 ok为true
 		if addrs := ebd.EtcdAddrs(); addrs != nil {
 			cli, err := clientv3.New(clientv3.Config{
 				Endpoints:   addrs,

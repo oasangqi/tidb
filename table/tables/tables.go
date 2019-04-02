@@ -538,6 +538,7 @@ func (t *tableCommon) addIndices(ctx sessionctx.Context, recordID int64, r []typ
 
 	writeBufs := ctx.GetSessionVars().GetWriteStmtBufs()
 	indexVals := writeBufs.IndexValsBuf
+	// 表上的所有索引列更新
 	for _, v := range t.WritableIndices() {
 		var err2 error
 		indexVals, err2 = v.FetchValues(r, indexVals)
@@ -553,6 +554,7 @@ func (t *tableCommon) addIndices(ctx sessionctx.Context, recordID int64, r []typ
 			dupKeyErr = kv.ErrKeyExists.FastGen("Duplicate entry '%s' for key '%s'", entryKey, v.Meta().Name)
 			txn.SetOption(kv.PresumeKeyNotExistsError, dupKeyErr)
 		}
+		// 更新单个索引 参照table/tables/index.go func (c *index) Create
 		if dupHandle, err := v.Create(ctx, rm, indexVals, recordID); err != nil {
 			if kv.ErrKeyExists.Equal(err) {
 				return dupHandle, errors.Trace(dupKeyErr)

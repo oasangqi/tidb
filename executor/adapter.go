@@ -310,6 +310,7 @@ func (a *ExecStmt) buildExecutor(ctx sessionctx.Context) (Executor, error) {
 
 	b := newExecutorBuilder(ctx, a.InfoSchema)
 	// INSERT语句返回的Executor类型为InsertExec结构
+	// SELECT语句返回的Executor类型为SelectionExec结构
 	e := b.build(a.Plan)
 	if b.err != nil {
 		return nil, errors.Trace(b.err)

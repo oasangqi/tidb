@@ -24,6 +24,7 @@ import (
 )
 
 // Row represents a row of data, can be used to assess values.
+// Row为Chunk包含的列阵的第idx行数据集合
 type Row struct {
 	c   *Chunk
 	idx int

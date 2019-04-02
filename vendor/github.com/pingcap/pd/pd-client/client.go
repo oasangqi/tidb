@@ -124,6 +124,7 @@ func NewClient(pdAddrs []string, security SecurityOption) (Client, error) {
 	}
 	c.connMu.clientConns = make(map[string]*grpc.ClientConn)
 
+	// 与grpc服务器(pd)建立连接并进行grpc接口调用
 	if err := c.initClusterID(); err != nil {
 		return nil, errors.Trace(err)
 	}
@@ -190,6 +191,7 @@ func (c *client) getMembers(ctx context.Context, url string) (*pdpb.GetMembersRe
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
+	// 调用grpc接口:GetMembers
 	members, err := pdpb.NewPDClient(cc).GetMembers(ctx, &pdpb.GetMembersRequest{})
 	if err != nil {
 		return nil, errors.Trace(err)
@@ -222,6 +224,7 @@ func (c *client) switchLeader(addrs []string) error {
 
 func (c *client) getOrCreateGRPCConn(addr string) (*grpc.ClientConn, error) {
 	// get connection
+	// 优先取缓存的grpc服务器
 	c.connMu.RLock()
 	conn, ok := c.connMu.clientConns[addr]
 	c.connMu.RUnlock()
@@ -266,6 +269,7 @@ func (c *client) getOrCreateGRPCConn(addr string) (*grpc.ClientConn, error) {
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
+	// 连接grpc服务器
 	cc, err := grpc.Dial(u.Host, opt)
 	if err != nil {
 		return nil, errors.Trace(err)
@@ -349,6 +353,7 @@ func (c *client) tsLoop() {
 		if stream == nil {
 			var ctx context.Context
 			ctx, cancel = context.WithCancel(c.ctx)
+			// grpc接口调用
 			stream, err = c.leaderClient().Tso(ctx)
 			if err != nil {
 				log.Errorf("[pd] create tso stream error: %v", err)
@@ -366,7 +371,9 @@ func (c *client) tsLoop() {
 
 		select {
 		case first := <-c.tsoRequests:
+			// tsoRequests带缓冲区，先取出一个
 			requests = append(requests, first)
+			// 取剩下的
 			pending := len(c.tsoRequests)
 			for i := 0; i < pending; i++ {
 				requests = append(requests, <-c.tsoRequests)
@@ -425,6 +432,7 @@ func (c *client) processTSORequests(stream pdpb.PD_TsoClient, requests []*tsoReq
 		Count:  uint32(len(requests)),
 	}
 
+	// grpc接口调用 从pd获取信息
 	if err := stream.Send(req); err != nil {
 		// 通知处理失败，并传递err
 		c.finishTSORequest(requests, 0, 0, err)

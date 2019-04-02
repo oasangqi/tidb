@@ -162,6 +162,7 @@ func (e *InsertValues) insertRows(cols []*table.Column, exec func(rows [][]types
 			return errors.Trace(err)
 		}
 	}
+	// 插入行
 	return errors.Trace(exec(rows))
 }
 

@@ -143,6 +143,7 @@ func doOptimize(flag uint64, logic LogicalPlan) (PhysicalPlan, error) {
 
 func logicalOptimize(flag uint64, logic LogicalPlan) (LogicalPlan, error) {
 	var err error
+	// 按规则列表进行优化
 	for i, rule := range optRuleList {
 		// The order of flags is same as the order of optRule in the list.
 		// We use a bitmask to record which opt rules should be used. If the i-th bit is 1, it means we should

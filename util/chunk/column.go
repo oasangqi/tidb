@@ -43,13 +43,14 @@ func (c *column) appendJSON(j json.BinaryJSON) {
 	c.finishAppendVar()
 }
 
+// 负责连续的在内存中存储同一列的数据
 type column struct {
-	length     int
-	nullCount  int
-	nullBitmap []byte
-	offsets    []int32
-	data       []byte
-	elemBuf    []byte
+	length     int     // 行数
+	nullCount  int     // NULL值个数
+	nullBitmap []byte  // 哪些为NULL，0表示NULL
+	offsets    []int32 // 每行数据在data中的位移，用于变长列
+	data       []byte  // 数据存储区
+	elemBuf    []byte  // 用于定长列，需要读、写一个数据时，用它辅助encode、decode
 }
 
 func (c *column) isFixed() bool {
